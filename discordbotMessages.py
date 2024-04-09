@@ -7,15 +7,17 @@ from dotenv import load_dotenv
 # load environment variables
 load_dotenv()
 
-# Fetch token 
+# fetch token 
 TOKEN = os.getenv('DISCORD_TOKEN')
+# my user ID
+OWNER_ID = int(os.getenv('OWNER_ID'))
 
 intents = discord.Intents.all()
 intents.messages = True  # allow the bot to receive message events
 
 client = discord.Client(intents=intents)
 
-data = pd.DataFrame(columns=['id', 'content', 'time', 'channel', 'author', 'reaction_count', 'attachments'])
+data = pd.DataFrame(columns=['id', 'content', 'time', 'channel', 'author', 'author_roles', 'reaction_count', 'attachments'])
 processed_messages = set()  # set to store processed message IDs
 
 @client.event
@@ -30,6 +32,9 @@ async def on_message(message):
             parameters = message.content.split()[1:]
 
         if cmd == 'scan':
+            if message.author.id != OWNER_ID:
+                return
+                
             channel = message.channel
             if isinstance(channel, discord.DMChannel):  # check if it's a DM channel
                 channel_name = "Direct Message"
@@ -52,12 +57,19 @@ async def on_message(message):
                         
                         # extract attachments
                         attachment_info = [{'filename': attachment.filename, 'url': attachment.url} for attachment in msg.attachments]
+
+                        # get author role
+                        if isinstance(channel, discord.TextChannel):  # check if it's a guild text channel
+                            author_roles = [role.name for role in msg.author.roles]  # get author's roles
+                        else:
+                            author_roles = None  # no roles in DMs
                         
                         new_data = pd.DataFrame({
                             'content': [msg.content],
                             'time': [msg.created_at],
                             'channel': [channel_name],
                             'author': [msg.author.name],
+                            'author_roles': [author_roles],
                             'reaction_count': [reaction_count],
                             'attachments': [attachment_info],
                         })
